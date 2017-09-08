@@ -1,6 +1,7 @@
 ﻿using Hhogdev.SitecorePackageDeployer.Tasks;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Hhogdev.SitecorePackageDeployer.Web.sitecore.admin
 {
@@ -15,18 +16,22 @@ namespace Hhogdev.SitecorePackageDeployer.Web.sitecore.admin
 
             if (Request.QueryString["synchronous"] == "1")
             {
-                var installer = new InstallPackage();
-                installer.Run();
+                var task = Task.Factory.StartNew(Runner);
+                Task.WaitAll(task);
             }
             else
             {
                 ThreadPool.QueueUserWorkItem((ctx) =>
                 {
-                    var installer = new InstallPackage();
-                    installer.Run();
+                    Runner();
                 });
             }
-                
+        }
+
+        private static void Runner()
+        {
+            var installer = new InstallPackage();
+            installer.Run();
         }
     }
 }
