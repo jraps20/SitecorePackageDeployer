@@ -1,0 +1,1 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="InstallAllPackages.aspx.cs" Inherits="Hhogdev.SitecorePackageDeployer.Web.sitecore.admin.InstallAllPackages" %>

@@ -24,6 +24,7 @@ using System.Xml.Serialization;
 using Sitecore.Web;
 using System.Net;
 using System.Reflection;
+using Hhogdev.SitecorePackageDeployer.Entities;
 using Sitecore.SecurityModel;
 using Sitecore.Data;
 using Sitecore.Syndication;
@@ -83,22 +84,23 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
             return packageSource;
         }
 
-        public void Run()
+        public List<SitecorePackage> Run()
         {
-            InstallPackages();
+            return InstallPackages();
         }
 
         /// <summary>
         /// Installs the packages found in the package source folder.
         /// </summary>
-        private void InstallPackages()
+        private List<SitecorePackage> InstallPackages()
         {
+            var packages = new List<SitecorePackage>();
             //Check to see if there is a post-step pending, and skip package install if there is
             if (File.Exists(Path.Combine(_packageSource, STARTUP_POST_STEP_PACKAGE_FILENAME)))
             {
                 Log.Info("Install packages skipped because there is a post step pending", this);
 
-                return;
+                return packages;
             }
 
             InstallLogger installLogger = new InstallLogger(new RootLogger(Level.ALL));
@@ -108,7 +110,7 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
             {
                 Log.Info(string.Format("Install packages skipped because install state is {0}. ", GetInstallerState()), this);
 
-                return;
+                return packages;
             }
 
             //Prevent shutdown
@@ -119,7 +121,7 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                 {
                     Log.Info("Skipping Install because shutdown is pending", this);
 
-                    return;
+                    return packages;
                 }
 
                 //Block further package installs
@@ -131,6 +133,9 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                     foreach (string updatePackageFilename in Directory.GetFiles(_packageSource, "*.update", SearchOption.TopDirectoryOnly).OrderBy(f => f))
                     {
                         string updatePackageFilenameStripped = updatePackageFilename.Split('\\').Last();
+
+                        var package = new SitecorePackage { Name = updatePackageFilenameStripped, Status = SitecorePackageStatus.Ready };
+
                         if (ShutdownDetected)
                         {
                             Log.Info("Install packages aborting due to shutdown", this);
@@ -139,6 +144,9 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                             {
                                 SetInstallerState(InstallerState.Ready);
                             }
+
+                            package.Status = SitecorePackageStatus.Aborted;
+                            packages.Add(package);
 
                             break;
                         }
@@ -191,6 +199,9 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
 
                                 RestartSitecoreServer();
 
+                                package.Status = SitecorePackageStatus.Shutdown;
+                                packages.Add(package);
+
                                 break;
                             }
                             else
@@ -201,6 +212,9 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                                 Log.Info(String.Format("Installation Complete: {0}", updatePackageFilenameStripped), this);
                                 SetInstallerState(InstallerState.InstallingPackage);
                             }
+
+                            package.Status = SitecorePackageStatus.Installed;
+                            packages.Add(package);
                         }
                         catch (PostStepInstallerException ex)
                         {
@@ -209,6 +223,9 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                             logMessages = ex.Entries;
                             installationHistoryRoot = ex.HistoryPath;
                             installLogger.Fatal("Package install failed", ex);
+
+                            package.Status = SitecorePackageStatus.Failed;
+                            packages.Add(package);
 
                             throw ex;
                         }
@@ -237,6 +254,9 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                                 }
                             }));
 
+                            package.Status = SitecorePackageStatus.Failed;
+                            packages.Add(package);
+
                             break;
                         }
                         finally
@@ -264,6 +284,8 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                     }
                 }
             }
+
+            return packages;
         }
 
         internal static void SetInstallerState(InstallerState installState)
