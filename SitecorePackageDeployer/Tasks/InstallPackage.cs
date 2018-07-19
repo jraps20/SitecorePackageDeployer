@@ -75,6 +75,12 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
         {
             string packageSource = Settings.GetSetting("SitecorePackageDeployer.PackageSource");
 
+            //See if the package source is a web path instead of a file system path.
+            if (packageSource.StartsWith("/"))
+            {
+                packageSource = MainUtil.MapPath(packageSource);
+            }
+
             if (!Directory.Exists(packageSource))
             {
                 Directory.CreateDirectory(packageSource);
@@ -472,7 +478,30 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                 using (FileStream fileStream = File.Create(messagesFile))
                 {
                     XmlEntrySerializer xmlEntrySerializer = new XmlEntrySerializer();
-                    xmlEntrySerializer.Serialize(logMessages, fileStream);
+
+                    //For some reason, this has changed in Sitecore 9. We are using reflection to get it because the fileStream parameter can be a FileStream or Stream
+                    //xmlEntrySerializer.Serialize(logMessages, fileStream);
+                    Type serializerType = xmlEntrySerializer.GetType();
+
+                    MethodInfo serializeMethod = serializerType.GetMethod("Serialize",
+                        BindingFlags.Public | BindingFlags.Instance,
+                        null,
+                        new Type[] { logMessages.GetType(), typeof(FileStream) },
+                        null);
+
+                    if (serializeMethod == null)
+                    {
+                        serializeMethod = serializerType.GetMethod("Serialize",
+                        BindingFlags.Public | BindingFlags.Instance,
+                        null,
+                        new Type[] { logMessages.GetType(), typeof(Stream) },
+                        null);
+                    }
+
+                    if (serializeMethod != null)
+                    {
+                        serializeMethod.Invoke(xmlEntrySerializer, new object[] { logMessages, fileStream });
+                    }
                 }
             }
             catch (Exception ex)

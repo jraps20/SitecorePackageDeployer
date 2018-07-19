@@ -1,5 +1,12 @@
+<img src="https://www.hhog.com/-/media/PublicImages/Hedgehog/Hedgehog-logo-4color-275x46.jpg" alt="Hedgehog Development" border="0"> 
+
+
 # Sitecore Package Deployer
-The Sitecore Package Deployer uses a Sitecore Job to automatically deploy update packages from a file system folder on the Sitecore server. This reduces the complexity of deployments because copying files to a web server is already something the deployment process does.
+The Sitecore Package Deployer uses a Sitecore Job to automatically deploy update packages from a file system folder on the Sitecore server. This reduces the complexity of deployments because copying files to a web server is already something the deployment process does. 
+
+Blog Post about this feature: [https://www.teamdevelopmentforsitecore.com/Blog/sitecore-package-deployer
+](https://www.teamdevelopmentforsitecore.com/Blog/sitecore-package-deployer
+)
 
 # Description
 There are three components that the Sitecore Package Deployer module uses to install update Packages. These components work together to deploy the Sitecore update package. 
@@ -40,9 +47,9 @@ The package deployer can also run in an "On Demand" mode. This allows you to hav
 # Installing the Sitecore Package Deployer
 The update package installer can be downloaded as an update package from [here](https://github.com/HedgehogDevelopment/SitecorePackageDeployer/releases). This is an update package and can be installed using the Update Installation Wizard in Sitecore. Once it is installed, the deploy folder will automatically be created in the default location of **$(dataFolder)\SitecorePackageDeployer**. Simply drop your update packages in that location and they will be automatically installed.
 
-The Sitecore Package Deployer has been tested with Sitecore 7.0, 7.1, 7.2, 7.5, 8.0, 8.1, and 8.2 initial release.
+The Sitecore Package Deployer has been tested with Sitecore 7.0, 7.1, 7.2, 7.5, 8.0, 8.1, 8.2 and 9.0.
 
-#Modifying the Sitecore Package Deployer
+# Modifying the Sitecore Package Deployer
 If you wish to modify Sitecore Package Deployer, simple fork the repository. You may need to make a few simple modifications depending on your local environment. At Hedgehog, we use an internal NuGet server to distribute the Sitecore assemblies. If you follow a similar practice, you should restore the proper NuGet packages and everything should be pointing to the correct locations.
 
 If you do not use NuGet, you will need to add references to the Sitecore .dll's in the **Hhogdev.SitecorePackageDeployer** project and update the location the TDS Update Package Builder uses to locate the Sitecore .dlls. 
