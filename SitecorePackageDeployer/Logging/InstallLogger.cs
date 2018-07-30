@@ -148,7 +148,7 @@ namespace Hhogdev.SitecorePackageDeployer.Logging
         /// </summary>
         /// <param name="message"></param>
         /// <param name="ex"></param>
-        /// <param name="dEBUG"></param>
+        /// <param name="DEBUG"></param>
         private void WriteMessage(object message, Exception ex)
         {
             StringBuilder messageBuilder = new StringBuilder(message.ToString());
@@ -169,6 +169,16 @@ namespace Hhogdev.SitecorePackageDeployer.Logging
         public void WriteMessages(string logFile)
         {
             File.AppendAllLines(logFile, _messages);
+        }
+
+        /// <summary>
+        /// Writes messages to a log file
+        /// </summary>
+        /// <param name="logFile"></param>
+        public string[] ReadMessages(string logFile)
+        {
+            string[] messages = File.ReadAllLines(logFile);
+            return messages;
         }
     }
 }
