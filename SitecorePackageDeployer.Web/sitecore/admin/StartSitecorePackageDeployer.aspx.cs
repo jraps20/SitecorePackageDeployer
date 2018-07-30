@@ -45,6 +45,7 @@ namespace Hhogdev.SitecorePackageDeployer.Web.sitecore.admin
                     Runner();
                 });
             }
+            
             var response = new InstallerResponse();
             response.Status = InstallPackage.GetInstallerState().ToString();
             response.Messages = InstallPackage.GetInstallerLog();

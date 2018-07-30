@@ -24,6 +24,7 @@ using System.Xml.Serialization;
 using Sitecore.Web;
 using System.Net;
 using System.Reflection;
+using Hhogdev.SitecorePackageDeployer.Entities;
 using Sitecore.SecurityModel;
 using Sitecore.Data;
 using Sitecore.Data.Events;
@@ -97,22 +98,23 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
             return packageSource;
         }
 
-        public void Run()
+        public List<SitecorePackage> Run()
         {
-            InstallPackages();
+            return InstallPackages();
         }
 
         /// <summary>
         /// Installs the packages found in the package source folder.
         /// </summary>
-        private void InstallPackages()
+        private List<SitecorePackage> InstallPackages()
         {
+            var packages = new List<SitecorePackage>();
             //Check to see if there is a post-step pending, and skip package install if there is
             if (File.Exists(Path.Combine(_packageSource, STARTUP_POST_STEP_PACKAGE_FILENAME)))
             {
                 Log.Info("Install packages skipped because there is a post step pending", this);
 
-                return;
+                return packages;
             }
 
 
@@ -121,7 +123,7 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
             {
                 Log.Info(string.Format("Install packages skipped because install state is {0}. ", GetInstallerState()), this);
 
-                return;
+                return packages;
             }
 
             //Prevent shutdown
@@ -132,7 +134,7 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                 {
                     Log.Info("Skipping Install because shutdown is pending", this);
 
-                    return;
+                    return packages;
                 }
 
                 //Block further package installs
@@ -162,7 +164,6 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                     {
                         SetInstallerState(InstallerState.Ready);
                     }
-
                     break;
                 }
 
