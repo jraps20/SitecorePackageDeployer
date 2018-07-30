@@ -144,153 +144,12 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                 using (PauseEvents ?  new EventDisabler() : null)
                 using (new SecurityDisabler())
                 {
-                    _executeInstall();
+                    _executeInstall(packages);
                 }
             }
+            return packages;
         }
-
-        private void _executeInstall()
-        {
-            //Find pending packages. This loop may not complete if there were binary/config changes
-            foreach (string updatePackageFilename in Directory
-                .GetFiles(_packageSource, "*.update", SearchOption.TopDirectoryOnly).OrderBy(f => f))
-            {
-                string updatePackageFilenameStripped = updatePackageFilename.Split('\\').Last();
-                if (ShutdownDetected)
-                {
-                    Log.Info("Install packages aborting due to shutdown", this);
-
-                    if (GetInstallerState() != InstallerState.WaitingForPostSteps)
-                    {
-                        SetInstallerState(InstallerState.Ready);
-                    }
-                    break;
-                }
-
-                Log.Info(String.Format("Begin Installation: {0}", updatePackageFilenameStripped), this);
-
-                List<ContingencyEntry> logMessages = new List<ContingencyEntry>();
-
-                PostStepDetails postStepDetails = new PostStepDetails
-                {
-                    PostStepPackageFilename = updatePackageFilename,
-                    ResultFileName = Path.Combine(Path.GetDirectoryName(updatePackageFilename),
-                        Path.GetFileNameWithoutExtension(updatePackageFilename) + ".json")
-                };
-
-                string installStatus = null;
-
-                try
-                {
-                    //Run the installer
-                    if (sitecoreUpdateVersionInfo.ProductMajorPart == 1)
-                    {
-                        logMessages = UpdateHelper.Install(BuildPackageInfo(updatePackageFilename), _installLogger,
-                            out _installationHistoryRoot);
-                    }
-                    else
-                    {
-                        object[] installationParamaters = new object[]
-                            {BuildReflectedPackageInfo(updatePackageFilename), _installLogger, null};
-                        logMessages = (List<ContingencyEntry>) updateHelperType.InvokeMember("Install",
-                            BindingFlags.InvokeMethod | BindingFlags.Static | BindingFlags.Public,
-                            null, null, installationParamaters, null);
-                        _installationHistoryRoot = installationParamaters[2].ToString();
-                    }
-
-                    postStepDetails.HistoryPath = _installationHistoryRoot;
-
-                    if (_updateConfigurationFiles)
-                    {
-                        FindAndUpdateChangedConfigs(Path.GetFileNameWithoutExtension(updatePackageFilename));
-                    }
-
-                    //Sleep for 4 seconds to see if there was a file change that could cause a problem
-                    Thread.Sleep(4000);
-
-                    //Abort if Sitecore is shutting down. The install post steps will have to be completed later
-                    if (ShutdownDetected)
-                    {
-                        SetInstallerState(InstallerState.WaitingForPostSteps);
-
-                        RunPostStepsAtStartup(updatePackageFilename, _installationHistoryRoot, postStepDetails);
-
-                        RestartSitecoreServer();
-
-                        break;
-                    }
-                    else
-                    {
-                        ExecutePostSteps(_installLogger, postStepDetails, false);
-                        installStatus = SUCCESS;
-
-                        Log.Info(String.Format("Installation Complete: {0}", updatePackageFilenameStripped), this);
-                        SetInstallerState(InstallerState.InstallingPackage);
-                    }
-                }
-                catch (PostStepInstallerException ex)
-                {
-                    installStatus = FAIL;
-
-                    logMessages = ex.Entries;
-                    _installationHistoryRoot = ex.HistoryPath;
-                    _installLogger.Fatal("Package install failed", ex);
-
-                    throw ex;
-                }
-                catch (Exception ex)
-                {
-                    installStatus = FAIL;
-                    Log.Error(String.Format("Installation Failed: {0}", updatePackageFilenameStripped), ex, this);
-                    _installLogger.Fatal("Package install failed", ex);
-
-                    ThreadPool.QueueUserWorkItem(new WaitCallback((ctx) =>
-                    {
-                        try
-                        {
-                            //The update package may be locked because the file object hasn't been disposed. Wait for it.
-                            Thread.Sleep(100);
-
-                            //I really hate this, but I couldn't find another reliable way to ensure the locked file is closed before I move it.
-                            GC.Collect(2);
-                            GC.WaitForPendingFinalizers();
-
-                            File.Move(updatePackageFilename,
-                                updatePackageFilename + ".error_" + DateTime.Now.ToString("yyyyMMdd.hhmmss"));
-                        }
-                        catch (Exception ex1)
-                        {
-                            Log.Error("Error moving broken package", ex1, this);
-                        }
-                    }));
-
-                    break;
-                }
-                finally
-                {
-                    if (_installationHistoryRoot != null)
-                    {
-                        //Write logs
-                        _installLogger.WriteMessages(Path.Combine(_installationHistoryRoot, "Install.log"));
-
-                        SaveInstallationMessages(_installationHistoryRoot, logMessages);
-                    }
-
-                    //Send the status if there is one
-                    if (installStatus != null)
-                    {
-                        NotifiyPackageComplete(installStatus, postStepDetails);
-                    }
-                }
-            }
-
-            if (!ShutdownDetected)
-            {
-                //Allow additional installs
-                SetInstallerState(InstallerState.Ready);
-            }
-        }
-
+        
         public static void SetInstallerState(InstallerState installState)
         {
             Log.Info(string.Format("Setting installer state to {0}", installState), typeof(InstallPackage));
@@ -321,6 +180,166 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
                 return messages;
             }
             return new string[0];
+        }
+
+        /// <summary>
+        /// Executes the actual installation of packages
+        /// </summary>
+        /// <param name="packages"></param>
+        private void _executeInstall(List<SitecorePackage> packages)
+        {
+            //Find pending packages. This loop may not complete if there were binary/config changes
+            foreach (string updatePackageFilename in Directory
+                .GetFiles(_packageSource, "*.update", SearchOption.TopDirectoryOnly).OrderBy(f => f))
+            {
+                string updatePackageFilenameStripped = updatePackageFilename.Split('\\').Last();
+                var package = new SitecorePackage { Name = updatePackageFilenameStripped, Status = SitecorePackageStatus.Ready };
+
+                if (ShutdownDetected)
+                {
+                    Log.Info("Install packages aborting due to shutdown", this);
+
+                    if (GetInstallerState() != InstallerState.WaitingForPostSteps)
+                    {
+                        SetInstallerState(InstallerState.Ready);
+                    }
+                    package.Status = SitecorePackageStatus.Aborted;
+                    packages.Add(package);
+
+                    break;
+                }
+
+                Log.Info(String.Format("Begin Installation: {0}", updatePackageFilenameStripped), this);
+
+                List<ContingencyEntry> logMessages = new List<ContingencyEntry>();
+
+                PostStepDetails postStepDetails = new PostStepDetails
+                {
+                    PostStepPackageFilename = updatePackageFilename,
+                    ResultFileName = Path.Combine(Path.GetDirectoryName(updatePackageFilename),
+                        Path.GetFileNameWithoutExtension(updatePackageFilename) + ".json")
+                };
+
+                string installStatus = null;
+
+                try
+                {
+                    //Run the installer
+                    if (sitecoreUpdateVersionInfo.ProductMajorPart == 1)
+                    {
+                        logMessages = UpdateHelper.Install(BuildPackageInfo(updatePackageFilename), _installLogger,
+                            out _installationHistoryRoot);
+                    }
+                    else
+                    {
+                        object[] installationParamaters = new object[]
+                            {BuildReflectedPackageInfo(updatePackageFilename), _installLogger, null};
+                        logMessages = (List<ContingencyEntry>)updateHelperType.InvokeMember("Install",
+                            BindingFlags.InvokeMethod | BindingFlags.Static | BindingFlags.Public,
+                            null, null, installationParamaters, null);
+                        _installationHistoryRoot = installationParamaters[2].ToString();
+                    }
+
+                    postStepDetails.HistoryPath = _installationHistoryRoot;
+
+                    if (_updateConfigurationFiles)
+                    {
+                        FindAndUpdateChangedConfigs(Path.GetFileNameWithoutExtension(updatePackageFilename));
+                    }
+
+                    //Sleep for 4 seconds to see if there was a file change that could cause a problem
+                    Thread.Sleep(4000);
+
+                    //Abort if Sitecore is shutting down. The install post steps will have to be completed later
+                    if (ShutdownDetected)
+                    {
+                        SetInstallerState(InstallerState.WaitingForPostSteps);
+
+                        RunPostStepsAtStartup(updatePackageFilename, _installationHistoryRoot, postStepDetails);
+
+                        RestartSitecoreServer();
+                        package.Status = SitecorePackageStatus.Shutdown;
+                        packages.Add(package);
+
+                        break;
+                    }
+                    else
+                    {
+                        ExecutePostSteps(_installLogger, postStepDetails, false);
+                        installStatus = SUCCESS;
+
+                        Log.Info(String.Format("Installation Complete: {0}", updatePackageFilenameStripped), this);
+                        SetInstallerState(InstallerState.InstallingPackage);
+                    }
+
+
+                    package.Status = SitecorePackageStatus.Installed;
+                    packages.Add(package);
+                }
+                catch (PostStepInstallerException ex)
+                {
+                    installStatus = FAIL;
+
+                    logMessages = ex.Entries;
+                    _installationHistoryRoot = ex.HistoryPath;
+                    _installLogger.Fatal("Package install failed", ex);
+                    package.Status = SitecorePackageStatus.Failed;
+                    packages.Add(package);
+                    throw ex;
+                }
+                catch (Exception ex)
+                {
+                    installStatus = FAIL;
+                    Log.Error(String.Format("Installation Failed: {0}", updatePackageFilenameStripped), ex, this);
+                    _installLogger.Fatal("Package install failed", ex);
+
+                    ThreadPool.QueueUserWorkItem(new WaitCallback((ctx) =>
+                    {
+                        try
+                        {
+                            //The update package may be locked because the file object hasn't been disposed. Wait for it.
+                            Thread.Sleep(100);
+
+                            //I really hate this, but I couldn't find another reliable way to ensure the locked file is closed before I move it.
+                            GC.Collect(2);
+                            GC.WaitForPendingFinalizers();
+
+                            File.Move(updatePackageFilename,
+                                updatePackageFilename + ".error_" + DateTime.Now.ToString("yyyyMMdd.hhmmss"));
+                        }
+                        catch (Exception ex1)
+                        {
+                            Log.Error("Error moving broken package", ex1, this);
+                        }
+                    }));
+
+                    package.Status = SitecorePackageStatus.Failed;
+                    packages.Add(package);
+                    break;
+                }
+                finally
+                {
+                    if (_installationHistoryRoot != null)
+                    {
+                        //Write logs
+                        _installLogger.WriteMessages(Path.Combine(_installationHistoryRoot, "Install.log"));
+
+                        SaveInstallationMessages(_installationHistoryRoot, logMessages);
+                    }
+
+                    //Send the status if there is one
+                    if (installStatus != null)
+                    {
+                        NotifiyPackageComplete(installStatus, postStepDetails);
+                    }
+                }
+            }
+
+            if (!ShutdownDetected)
+            {
+                //Allow additional installs
+                SetInstallerState(InstallerState.Ready);
+            }
         }
 
         /// <summary>
