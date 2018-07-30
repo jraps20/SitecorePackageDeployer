@@ -29,16 +29,15 @@ if($RepeatInterval -gt 0)
 		write-host $messages.Status -ForegroundColor Green
 		if($messages.Messages.Length -gt 0)
 		{
-			$messages.Messages[$messages.Messages.Length - 1];
 			write-host $messages.Messages[$messages.Messages.Length - 1] -ForegroundColor DarkGray
 			
-			if($messages.Status -eq "InstallingPackage" -or $messages.Status -eq "InstallingPostSteps")
+			if($messages.Status.Contains("InstallingPackage") -or $messages.Status.Contains("InstallingPostSteps"))
 			{
 				$hitExecutionStage = $TRUE;
 			}
-			
-			if($hitExecutionStage -and $messages.Status -eq "Ready" )
+			if($hitExecutionStage -and $messages.Status.Contains("Ready"))
 			{
+				Write-Host "break"
 				break forEveryInterval;
 			}
 		}
