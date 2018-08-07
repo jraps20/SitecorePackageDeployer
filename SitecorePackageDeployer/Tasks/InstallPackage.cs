@@ -182,6 +182,11 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
             return new string[0];
         }
 
+        public static IEnumerable<string> GetPackages()
+        {
+            return Directory.GetFiles(GetPackageSource(), "*.update", SearchOption.TopDirectoryOnly).OrderBy(f => f);
+        }
+
         /// <summary>
         /// Executes the actual installation of packages
         /// </summary>
@@ -189,8 +194,7 @@ namespace Hhogdev.SitecorePackageDeployer.Tasks
         private void _executeInstall(List<SitecorePackage> packages)
         {
             //Find pending packages. This loop may not complete if there were binary/config changes
-            foreach (string updatePackageFilename in Directory
-                .GetFiles(_packageSource, "*.update", SearchOption.TopDirectoryOnly).OrderBy(f => f))
+            foreach (string updatePackageFilename in GetPackages())
             {
                 string updatePackageFilenameStripped = updatePackageFilename.Split('\\').Last();
                 var package = new SitecorePackage { Name = updatePackageFilenameStripped, Status = SitecorePackageStatus.Ready };

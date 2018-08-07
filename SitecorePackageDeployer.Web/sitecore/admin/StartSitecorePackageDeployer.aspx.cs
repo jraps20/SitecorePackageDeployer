@@ -1,5 +1,6 @@
 ﻿using Hhogdev.SitecorePackageDeployer.Tasks;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -18,6 +19,7 @@ namespace Hhogdev.SitecorePackageDeployer.Web.sitecore.admin
             var pauseIndexing = bool.Parse(Request.QueryString["pauseIndexing"] ?? "true");
             var pauseEvents = bool.Parse(Request.QueryString["pauseEvents"] ?? "true");
             var responseType = Request.QueryString["response"] ?? "";
+
             if (force)
             {
                 InstallPackage.ResetInstallState();
@@ -49,9 +51,16 @@ namespace Hhogdev.SitecorePackageDeployer.Web.sitecore.admin
             var response = new InstallerResponse();
             response.Status = InstallPackage.GetInstallerState().ToString();
             response.Messages = InstallPackage.GetInstallerLog();
+
             if (response.Status == null && response.Messages == null)
             {
                 return;
+            }
+
+            if (!InstallPackage.GetPackages().Any())
+            {
+                response.Messages = new string[0];
+                response.Messages[0] = "Nothing to install";
             }
 
             if (responseType.Equals("json", StringComparison.InvariantCultureIgnoreCase))
