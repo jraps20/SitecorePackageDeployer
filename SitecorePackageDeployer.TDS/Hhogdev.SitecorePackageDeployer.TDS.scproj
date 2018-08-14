@@ -23,6 +23,8 @@
     <ManageRoles>False</ManageRoles>
     <SitecoreDatabase>master</SitecoreDatabase>
     <AssemblyStatus>Exclude</AssemblyStatus>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -37,7 +39,7 @@
     <PackageAuthor>Charles Turano</PackageAuthor>
     <PackagePublisher>Hedgehog Development</PackagePublisher>
     <PackageReadme>Installs packages using a folder</PackageReadme>
-    <PackageVersion>1.8</PackageVersion>
+    <PackageVersion>1.9</PackageVersion>
     <SitecoreAssemblyPath>
     </SitecoreAssemblyPath>
   </PropertyGroup>
@@ -45,6 +47,16 @@
     <DebugSymbols>false</DebugSymbols>
     <OutputPath>.\bin\Release\</OutputPath>
     <RecursiveDeployAction>Ignore</RecursiveDeployAction>
+    <PackageName>Hhogdev.SitecorePackageDeployer</PackageName>
+    <GeneratePackage>True</GeneratePackage>
+    <SeperateFilesAndItems>False</SeperateFilesAndItems>
+    <PackageExcludeCode>False</PackageExcludeCode>
+    <AddDateTimeToPackageName>False</AddDateTimeToPackageName>
+    <PackageAuthor>Charles Turano</PackageAuthor>
+    <PackagePublisher>Hedgehog Development</PackagePublisher>
+    <PackageReadme>Installs packages using a folder</PackageReadme>
+    <PackageVersion>1.10</PackageVersion>
+    <SitecoreAssemblyPath>..\packages\SitecoreKernel.7.0.0.131127\lib</SitecoreAssemblyPath>
   </PropertyGroup>
   <ItemGroup>
     <AssemblyAttributes Include="AssemblyFileVersion">
@@ -63,5 +75,15 @@
   <ItemGroup>
     <ExcludedAssemblies Include="newtonsoft.json.dll" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\HedgehogDevelopment\SitecoreProject\v9.0\HedgehogDevelopment.SitecoreProject.targets" Condition="Exists('$(MSBuildExtensionsPath)\HedgehogDevelopment\SitecoreProject\v9.0\HedgehogDevelopment.SitecoreProject.targets')" />
+  <Import Project="..\packages\HedgehogDevelopment.TDS.5.7.0.7\build\HedgehogDevelopment.TDS.targets" Condition="Exists('..\packages\HedgehogDevelopment.TDS.5.7.0.7\build\HedgehogDevelopment.TDS.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\HedgehogDevelopment.TDS.5.7.0.7\build\HedgehogDevelopment.TDS.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\HedgehogDevelopment.TDS.5.7.0.7\build\HedgehogDevelopment.TDS.targets'))" />
+  </Target>
 </Project>

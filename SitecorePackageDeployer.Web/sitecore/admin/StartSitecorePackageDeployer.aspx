@@ -8,9 +8,10 @@
 </head>
 <body>
     <form id="form1" runat="server">
-    <div>
-        Sitecore Package Deployer started
-    </div>
+        <div>
+            Sitecore Package Deployer <b><span runat="server" id="State">...</span></b>
+        </div>
+        <div runat="server" id="Logs"></div>
     </form>
 </body>
 </html>
